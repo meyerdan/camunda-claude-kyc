@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_RiskAssessment"
+             name="Risk Assessment"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="risk-assessment" name="Risk Assessment">
+    <decisionTable id="DecisionTable_1" hitPolicy="FIRST">
+      <input id="Input_1" label="Identity Score">
+        <inputExpression id="InputExpr_1" typeRef="number">
+          <text>identityScore</text>
+        </inputExpression>
+      </input>
+      <input id="Input_2" label="Credit Score">
+        <inputExpression id="InputExpr_2" typeRef="number">
+          <text>creditScore</text>
+        </inputExpression>
+      </input>
+      <input id="Input_3" label="Country">
+        <inputExpression id="InputExpr_3" typeRef="string">
+          <text>country</text>
+        </inputExpression>
+      </input>
+      <output id="Output_1" label="Risk Level" name="riskLevel" typeRef="string"/>
+
+      <!-- Rule 1: identityScore < 50 → HIGH -->
+      <rule id="Rule_1">
+        <inputEntry id="IE_1_1"><text>&lt; 50</text></inputEntry>
+        <inputEntry id="IE_1_2"><text></text></inputEntry>
+        <inputEntry id="IE_1_3"><text></text></inputEntry>
+        <outputEntry id="OE_1"><text>"HIGH"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: identityScore >= 50, creditScore < 500 → HIGH -->
+      <rule id="Rule_2">
+        <inputEntry id="IE_2_1"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>&lt; 500</text></inputEntry>
+        <inputEntry id="IE_2_3"><text></text></inputEntry>
+        <outputEntry id="OE_2"><text>"HIGH"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: identityScore >= 50, creditScore [500..650) → MEDIUM -->
+      <rule id="Rule_3">
+        <inputEntry id="IE_3_1"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>[500..650)</text></inputEntry>
+        <inputEntry id="IE_3_3"><text></text></inputEntry>
+        <outputEntry id="OE_3"><text>"MEDIUM"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: identityScore >= 50, creditScore >= 650, country in US/GB/DE/FR → LOW -->
+      <rule id="Rule_4">
+        <inputEntry id="IE_4_1"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>&gt;= 650</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>"US","GB","DE","FR"</text></inputEntry>
+        <outputEntry id="OE_4"><text>"LOW"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: identityScore >= 50, creditScore >= 650, other country → MEDIUM -->
+      <rule id="Rule_5">
+        <inputEntry id="IE_5_1"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>&gt;= 650</text></inputEntry>
+        <inputEntry id="IE_5_3"><text></text></inputEntry>
+        <outputEntry id="OE_5"><text>"MEDIUM"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_1" dmnElementRef="risk-assessment">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

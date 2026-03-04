@@ -1,0 +1,70 @@
+{
+  "components": [
+    {
+      "text": "## Compliance Review",
+      "type": "text"
+    },
+    {
+      "label": "Application ID",
+      "type": "textfield",
+      "key": "applicationId",
+      "disabled": true
+    },
+    {
+      "label": "Applicant Name",
+      "type": "textfield",
+      "key": "applicantName",
+      "disabled": true
+    },
+    {
+      "label": "Email",
+      "type": "textfield",
+      "key": "email",
+      "disabled": true
+    },
+    {
+      "label": "Country",
+      "type": "textfield",
+      "key": "country",
+      "disabled": true
+    },
+    {
+      "label": "Identity Score",
+      "type": "number",
+      "key": "identityScore",
+      "disabled": true
+    },
+    {
+      "label": "Credit Score",
+      "type": "number",
+      "key": "creditScore",
+      "disabled": true
+    },
+    {
+      "label": "Risk Level",
+      "type": "textfield",
+      "key": "riskLevel",
+      "disabled": true
+    },
+    {
+      "type": "separator"
+    },
+    {
+      "label": "Review Decision",
+      "type": "select",
+      "key": "reviewDecision",
+      "validate": {
+        "required": true
+      },
+      "valuesExpression": "=[\n  {\"label\": \"Approve\", \"value\": \"approved\"},\n  {\"label\": \"Reject\", \"value\": \"rejected\"},\n  {\"label\": \"Request Documents\", \"value\": \"request_docs\"}\n]"
+    },
+    {
+      "label": "Review Comments",
+      "type": "textarea",
+      "key": "reviewComments"
+    }
+  ],
+  "type": "default",
+  "id": "review-application",
+  "schemaVersion": 16
+}

@@ -1,0 +1,16 @@
+{
+  "name": "kyc-workers",
+  "version": "1.0.0",
+  "description": "Job workers for KYC onboarding process",
+  "scripts": {
+    "start": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@camunda8/sdk": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "@types/node": "latest",
+    "ts-node": "latest"
+  }
+}

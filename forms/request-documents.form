@@ -1,0 +1,39 @@
+{
+  "components": [
+    {
+      "text": "## Request Additional Documents",
+      "type": "text"
+    },
+    {
+      "label": "Application ID",
+      "type": "textfield",
+      "key": "applicationId",
+      "disabled": true
+    },
+    {
+      "label": "Applicant Name",
+      "type": "textfield",
+      "key": "applicantName",
+      "disabled": true
+    },
+    {
+      "type": "separator"
+    },
+    {
+      "label": "Documents Requested",
+      "type": "textarea",
+      "key": "documentsRequested",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Document Notes",
+      "type": "textfield",
+      "key": "documentNotes"
+    }
+  ],
+  "type": "default",
+  "id": "request-documents",
+  "schemaVersion": 16
+}
