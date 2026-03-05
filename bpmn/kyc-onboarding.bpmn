@@ -16,21 +16,21 @@
   <bpmn:process id="kyc-onboarding" name="KYC Customer Onboarding" isExecutable="true">
 
     <!-- Start Event -->
-    <bpmn:startEvent id="start" name="Application Received">
-      <bpmn:outgoing>flow_start_prepare</bpmn:outgoing>
+    <bpmn:startEvent id="StartEvent_ApplicationReceived" name="Application received">
+      <bpmn:outgoing>Flow_StartToPrepare</bpmn:outgoing>
     </bpmn:startEvent>
 
     <!-- Prepare Application -->
-    <bpmn:serviceTask id="prepare-application" name="Prepare Application">
+    <bpmn:serviceTask id="Task_PrepareApplication" name="Prepare application">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="prepare-application" retries="3"/>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_start_prepare</bpmn:incoming>
-      <bpmn:outgoing>flow_prepare_identity</bpmn:outgoing>
+      <bpmn:incoming>Flow_StartToPrepare</bpmn:incoming>
+      <bpmn:outgoing>Flow_PrepareToVerify</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- Identity Verification (REST Connector) -->
-    <bpmn:serviceTask id="identity-verification" name="Identity Verification">
+    <bpmn:serviceTask id="Task_VerifyIdentity" name="Verify identity">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="io.camunda:http-json:1" retries="1"/>
         <zeebe:ioMapping>
@@ -46,42 +46,42 @@
           <zeebe:header key="retryBackoff" value="PT0S"/>
         </zeebe:taskHeaders>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_prepare_identity</bpmn:incoming>
-      <bpmn:outgoing>flow_identity_gw</bpmn:outgoing>
+      <bpmn:incoming>Flow_PrepareToVerify</bpmn:incoming>
+      <bpmn:outgoing>Flow_VerifyToGateway</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- Error Boundary on Identity Verification -->
-    <bpmn:boundaryEvent id="identity-error-boundary" name="Service Error" attachedToRef="identity-verification">
-      <bpmn:outgoing>flow_error_to_notify_failed</bpmn:outgoing>
+    <bpmn:boundaryEvent id="BoundaryEvent_ServiceError" name="Service error" attachedToRef="Task_VerifyIdentity">
+      <bpmn:outgoing>Flow_ErrorToNotify</bpmn:outgoing>
       <bpmn:errorEventDefinition id="ErrorEventDef_1"/>
     </bpmn:boundaryEvent>
 
-    <!-- Gateway: ID Verified? -->
-    <bpmn:exclusiveGateway id="gw_id_verified" name="ID Verified?">
-      <bpmn:incoming>flow_identity_gw</bpmn:incoming>
-      <bpmn:outgoing>flow_id_no</bpmn:outgoing>
-      <bpmn:outgoing>flow_id_yes</bpmn:outgoing>
+    <!-- Gateway: Identity verified? -->
+    <bpmn:exclusiveGateway id="Gateway_IdentityVerified" name="Identity verified?">
+      <bpmn:incoming>Flow_VerifyToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_IdentityNo</bpmn:outgoing>
+      <bpmn:outgoing>Flow_IdentityYes</bpmn:outgoing>
     </bpmn:exclusiveGateway>
 
-    <!-- Notify: Verification Failed (from gateway) -->
-    <bpmn:serviceTask id="notify-verification-failed" name="Notify: Verification Failed">
+    <!-- Notify: Verification Failed -->
+    <bpmn:serviceTask id="Task_NotifyVerificationFailed" name="Send failure notification">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="send-notification" retries="3"/>
         <zeebe:ioMapping>
           <zeebe:input source="verification-failed" target="notificationType"/>
         </zeebe:ioMapping>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_id_no</bpmn:incoming>
-      <bpmn:incoming>flow_error_to_notify_failed</bpmn:incoming>
-      <bpmn:outgoing>flow_verify_failed_end</bpmn:outgoing>
+      <bpmn:incoming>Flow_IdentityNo</bpmn:incoming>
+      <bpmn:incoming>Flow_ErrorToNotify</bpmn:incoming>
+      <bpmn:outgoing>Flow_FailedNotifyToEnd</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="end_verification_failed" name="Verification Failed">
-      <bpmn:incoming>flow_verify_failed_end</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_VerificationFailed" name="Verification failed">
+      <bpmn:incoming>Flow_FailedNotifyToEnd</bpmn:incoming>
     </bpmn:endEvent>
 
     <!-- Sanctions Check (REST Connector) -->
-    <bpmn:serviceTask id="sanctions-check" name="Sanctions Check">
+    <bpmn:serviceTask id="Task_CheckSanctions" name="Check sanctions">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="io.camunda:http-json:1" retries="3"/>
         <zeebe:ioMapping>
@@ -97,35 +97,35 @@
           <zeebe:header key="retryBackoff" value="PT0S"/>
         </zeebe:taskHeaders>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_id_yes</bpmn:incoming>
-      <bpmn:outgoing>flow_sanctions_gw</bpmn:outgoing>
+      <bpmn:incoming>Flow_IdentityYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_SanctionsToGateway</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <!-- Gateway: Sanctions Hit? -->
-    <bpmn:exclusiveGateway id="gw_sanctions" name="Sanctions Hit?">
-      <bpmn:incoming>flow_sanctions_gw</bpmn:incoming>
-      <bpmn:outgoing>flow_sanctions_yes</bpmn:outgoing>
-      <bpmn:outgoing>flow_sanctions_no</bpmn:outgoing>
+    <!-- Gateway: Sanctions hit? -->
+    <bpmn:exclusiveGateway id="Gateway_SanctionsHit" name="Sanctions hit?">
+      <bpmn:incoming>Flow_SanctionsToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_SanctionsYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SanctionsNo</bpmn:outgoing>
     </bpmn:exclusiveGateway>
 
     <!-- Notify: Sanctions Block -->
-    <bpmn:serviceTask id="notify-sanctions-block" name="Notify: Sanctions Block">
+    <bpmn:serviceTask id="Task_NotifySanctionsBlock" name="Send sanctions notification">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="send-notification" retries="3"/>
         <zeebe:ioMapping>
           <zeebe:input source="sanctions-block" target="notificationType"/>
         </zeebe:ioMapping>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_sanctions_yes</bpmn:incoming>
-      <bpmn:outgoing>flow_sanctions_block_end</bpmn:outgoing>
+      <bpmn:incoming>Flow_SanctionsYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_SanctionsNotifyToEnd</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="end_sanctions_block" name="Sanctions Block">
-      <bpmn:incoming>flow_sanctions_block_end</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_ApplicantSanctioned" name="Applicant sanctioned">
+      <bpmn:incoming>Flow_SanctionsNotifyToEnd</bpmn:incoming>
     </bpmn:endEvent>
 
     <!-- Credit Score (REST Connector) -->
-    <bpmn:serviceTask id="credit-score" name="Credit Score">
+    <bpmn:serviceTask id="Task_RetrieveCreditScore" name="Retrieve credit score">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="io.camunda:http-json:1" retries="3"/>
         <zeebe:ioMapping>
@@ -141,452 +141,510 @@
           <zeebe:header key="retryBackoff" value="PT0S"/>
         </zeebe:taskHeaders>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_sanctions_no</bpmn:incoming>
-      <bpmn:outgoing>flow_credit_risk</bpmn:outgoing>
+      <bpmn:incoming>Flow_SanctionsNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_CreditToRisk</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- Risk Assessment (DMN) -->
-    <bpmn:businessRuleTask id="risk-assessment" name="Risk Assessment">
+    <bpmn:businessRuleTask id="Task_AssessRisk" name="Assess risk">
       <bpmn:extensionElements>
         <zeebe:calledDecision decisionId="risk-assessment" resultVariable="riskLevel"/>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_credit_risk</bpmn:incoming>
-      <bpmn:outgoing>flow_risk_gw</bpmn:outgoing>
+      <bpmn:incoming>Flow_CreditToRisk</bpmn:incoming>
+      <bpmn:outgoing>Flow_RiskToGateway</bpmn:outgoing>
     </bpmn:businessRuleTask>
 
-    <!-- Gateway: Risk Level? -->
-    <bpmn:exclusiveGateway id="gw_risk_level" name="Risk Level?">
-      <bpmn:incoming>flow_risk_gw</bpmn:incoming>
-      <bpmn:outgoing>flow_risk_high</bpmn:outgoing>
-      <bpmn:outgoing>flow_risk_low</bpmn:outgoing>
-      <bpmn:outgoing>flow_risk_medium</bpmn:outgoing>
+    <!-- Gateway: Risk level? -->
+    <bpmn:exclusiveGateway id="Gateway_RiskLevel" name="Risk level?">
+      <bpmn:incoming>Flow_RiskToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_RiskHigh</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RiskLow</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RiskMedium</bpmn:outgoing>
     </bpmn:exclusiveGateway>
 
     <!-- HIGH risk path -->
-    <bpmn:serviceTask id="notify-rejected-high" name="Notify: Rejected">
+    <bpmn:serviceTask id="Task_NotifyRejectedHighRisk" name="Send rejection notification">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="send-notification" retries="3"/>
         <zeebe:ioMapping>
           <zeebe:input source="rejected" target="notificationType"/>
         </zeebe:ioMapping>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_risk_high</bpmn:incoming>
-      <bpmn:outgoing>flow_rejected_high_end</bpmn:outgoing>
+      <bpmn:incoming>Flow_RiskHigh</bpmn:incoming>
+      <bpmn:outgoing>Flow_RejectedHighToEnd</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="end_rejected_high" name="Rejected (High Risk)">
-      <bpmn:incoming>flow_rejected_high_end</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_RejectedHighRisk" name="Application rejected (high risk)">
+      <bpmn:incoming>Flow_RejectedHighToEnd</bpmn:incoming>
     </bpmn:endEvent>
 
-    <!-- LOW risk path -->
-    <bpmn:serviceTask id="create-account" name="Create Account">
+    <!-- Joining gateway before Create Account (merges LOW and Review Approved) -->
+    <bpmn:exclusiveGateway id="Gateway_JoinCreateAccount">
+      <bpmn:incoming>Flow_RiskLow</bpmn:incoming>
+      <bpmn:incoming>Flow_ReviewApproved</bpmn:incoming>
+      <bpmn:outgoing>Flow_JoinToCreate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Create account (after join) -->
+    <bpmn:serviceTask id="Task_CreateAccount" name="Create account">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="create-account" retries="3"/>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_risk_low</bpmn:incoming>
-      <bpmn:incoming>flow_review_approved</bpmn:incoming>
-      <bpmn:outgoing>flow_account_notify</bpmn:outgoing>
+      <bpmn:incoming>Flow_JoinToCreate</bpmn:incoming>
+      <bpmn:outgoing>Flow_AccountToNotify</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:serviceTask id="notify-approved" name="Notify: Approved">
+    <bpmn:serviceTask id="Task_NotifyApproved" name="Send approval notification">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="send-notification" retries="3"/>
         <zeebe:ioMapping>
           <zeebe:input source="approved" target="notificationType"/>
         </zeebe:ioMapping>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_account_notify</bpmn:incoming>
-      <bpmn:outgoing>flow_approved_end</bpmn:outgoing>
+      <bpmn:incoming>Flow_AccountToNotify</bpmn:incoming>
+      <bpmn:outgoing>Flow_ApprovedToEnd</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="end_approved" name="Approved">
-      <bpmn:incoming>flow_approved_end</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_ApplicationApproved" name="Application approved">
+      <bpmn:incoming>Flow_ApprovedToEnd</bpmn:incoming>
     </bpmn:endEvent>
 
     <!-- MEDIUM risk path: Compliance Review -->
-    <bpmn:userTask id="compliance-review" name="Compliance Review">
+    <bpmn:userTask id="Task_ReviewApplication" name="Review application">
       <bpmn:extensionElements>
         <zeebe:formDefinition formId="review-application"/>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_risk_medium</bpmn:incoming>
-      <bpmn:incoming>flow_request_docs_back</bpmn:incoming>
-      <bpmn:outgoing>flow_review_gw</bpmn:outgoing>
+      <bpmn:incoming>Flow_RiskMedium</bpmn:incoming>
+      <bpmn:incoming>Flow_DocsBackToReview</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewToGateway</bpmn:outgoing>
     </bpmn:userTask>
 
     <!-- Timer: Non-interrupting reminder (PT10S for demo) -->
-    <bpmn:boundaryEvent id="timer-reminder" name="Reminder" attachedToRef="compliance-review" cancelActivity="false">
-      <bpmn:outgoing>flow_reminder_notify</bpmn:outgoing>
+    <bpmn:boundaryEvent id="BoundaryEvent_ReviewReminder" name="Review reminder" attachedToRef="Task_ReviewApplication" cancelActivity="false">
+      <bpmn:outgoing>Flow_ReminderToNotify</bpmn:outgoing>
       <bpmn:timerEventDefinition id="TimerDef_reminder">
         <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT10S</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
     </bpmn:boundaryEvent>
 
-    <bpmn:serviceTask id="notify-reminder" name="Send Reminder">
+    <bpmn:serviceTask id="Task_SendReminder" name="Send reminder">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="send-notification" retries="3"/>
         <zeebe:ioMapping>
           <zeebe:input source="reminder" target="notificationType"/>
         </zeebe:ioMapping>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_reminder_notify</bpmn:incoming>
-      <bpmn:outgoing>flow_reminder_end</bpmn:outgoing>
+      <bpmn:incoming>Flow_ReminderToNotify</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReminderToEnd</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="end_reminder" name="Reminder Sent">
-      <bpmn:incoming>flow_reminder_end</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_ReminderSent" name="Reminder sent">
+      <bpmn:incoming>Flow_ReminderToEnd</bpmn:incoming>
     </bpmn:endEvent>
 
     <!-- Timer: Interrupting escalation (PT20S for demo) - auto-reject -->
-    <bpmn:boundaryEvent id="timer-escalation" name="Escalation Timeout" attachedToRef="compliance-review" cancelActivity="true">
-      <bpmn:outgoing>flow_escalation_notify</bpmn:outgoing>
+    <bpmn:boundaryEvent id="BoundaryEvent_ReviewTimeout" name="Review timed out" attachedToRef="Task_ReviewApplication" cancelActivity="true">
+      <bpmn:outgoing>Flow_EscalationToNotify</bpmn:outgoing>
       <bpmn:timerEventDefinition id="TimerDef_escalation">
         <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT20S</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
     </bpmn:boundaryEvent>
 
-    <bpmn:serviceTask id="notify-rejected-timeout" name="Notify: Auto-Rejected">
+    <bpmn:serviceTask id="Task_NotifyAutoRejected" name="Send auto-rejection notification">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="send-notification" retries="3"/>
         <zeebe:ioMapping>
           <zeebe:input source="rejected" target="notificationType"/>
         </zeebe:ioMapping>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_escalation_notify</bpmn:incoming>
-      <bpmn:outgoing>flow_timeout_end</bpmn:outgoing>
+      <bpmn:incoming>Flow_EscalationToNotify</bpmn:incoming>
+      <bpmn:outgoing>Flow_TimeoutToEnd</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="end_timeout" name="Auto-Rejected">
-      <bpmn:incoming>flow_timeout_end</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_ApplicationAutoRejected" name="Application auto-rejected">
+      <bpmn:incoming>Flow_TimeoutToEnd</bpmn:incoming>
     </bpmn:endEvent>
 
-    <!-- Gateway: Review Decision? -->
-    <bpmn:exclusiveGateway id="gw_review_decision" name="Review Decision?">
-      <bpmn:incoming>flow_review_gw</bpmn:incoming>
-      <bpmn:outgoing>flow_review_approved</bpmn:outgoing>
-      <bpmn:outgoing>flow_review_rejected</bpmn:outgoing>
-      <bpmn:outgoing>flow_review_request_docs</bpmn:outgoing>
+    <!-- Gateway: Review decision? -->
+    <bpmn:exclusiveGateway id="Gateway_ReviewDecision" name="Review decision?">
+      <bpmn:incoming>Flow_ReviewToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewApproved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ReviewRejected</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ReviewRequestDocs</bpmn:outgoing>
     </bpmn:exclusiveGateway>
 
-    <!-- Review → Rejected -->
-    <bpmn:serviceTask id="notify-rejected-review" name="Notify: Rejected">
+    <!-- Review: Rejected -->
+    <bpmn:serviceTask id="Task_NotifyRejectedReview" name="Send rejection notification">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="send-notification" retries="3"/>
         <zeebe:ioMapping>
           <zeebe:input source="rejected" target="notificationType"/>
         </zeebe:ioMapping>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_review_rejected</bpmn:incoming>
-      <bpmn:outgoing>flow_rejected_review_end</bpmn:outgoing>
+      <bpmn:incoming>Flow_ReviewRejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_RejectedReviewToEnd</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <bpmn:endEvent id="end_rejected_review" name="Rejected (Review)">
-      <bpmn:incoming>flow_rejected_review_end</bpmn:incoming>
+    <bpmn:endEvent id="EndEvent_RejectedByReview" name="Application rejected (review)">
+      <bpmn:incoming>Flow_RejectedReviewToEnd</bpmn:incoming>
     </bpmn:endEvent>
 
-    <!-- Review → Request Documents -->
-    <bpmn:userTask id="request-documents" name="Request Documents">
+    <!-- Review: Request Documents -->
+    <bpmn:userTask id="Task_RequestDocuments" name="Request documents">
       <bpmn:extensionElements>
         <zeebe:formDefinition formId="request-documents"/>
       </bpmn:extensionElements>
-      <bpmn:incoming>flow_review_request_docs</bpmn:incoming>
-      <bpmn:outgoing>flow_request_docs_back</bpmn:outgoing>
+      <bpmn:incoming>Flow_ReviewRequestDocs</bpmn:incoming>
+      <bpmn:outgoing>Flow_DocsBackToReview</bpmn:outgoing>
     </bpmn:userTask>
 
     <!-- Sequence Flows -->
-    <bpmn:sequenceFlow id="flow_start_prepare" sourceRef="start" targetRef="prepare-application"/>
-    <bpmn:sequenceFlow id="flow_prepare_identity" sourceRef="prepare-application" targetRef="identity-verification"/>
-    <bpmn:sequenceFlow id="flow_identity_gw" sourceRef="identity-verification" targetRef="gw_id_verified"/>
-    <bpmn:sequenceFlow id="flow_error_to_notify_failed" sourceRef="identity-error-boundary" targetRef="notify-verification-failed"/>
-    <bpmn:sequenceFlow id="flow_id_no" name="Not Verified" sourceRef="gw_id_verified" targetRef="notify-verification-failed">
+    <bpmn:sequenceFlow id="Flow_StartToPrepare" sourceRef="StartEvent_ApplicationReceived" targetRef="Task_PrepareApplication"/>
+    <bpmn:sequenceFlow id="Flow_PrepareToVerify" sourceRef="Task_PrepareApplication" targetRef="Task_VerifyIdentity"/>
+    <bpmn:sequenceFlow id="Flow_VerifyToGateway" sourceRef="Task_VerifyIdentity" targetRef="Gateway_IdentityVerified"/>
+    <bpmn:sequenceFlow id="Flow_ErrorToNotify" sourceRef="BoundaryEvent_ServiceError" targetRef="Task_NotifyVerificationFailed"/>
+    <bpmn:sequenceFlow id="Flow_IdentityNo" name="No" sourceRef="Gateway_IdentityVerified" targetRef="Task_NotifyVerificationFailed">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=identityVerified = false</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_id_yes" name="Verified" sourceRef="gw_id_verified" targetRef="sanctions-check">
+    <bpmn:sequenceFlow id="Flow_IdentityYes" name="Yes" sourceRef="Gateway_IdentityVerified" targetRef="Task_CheckSanctions">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=identityVerified = true</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_verify_failed_end" sourceRef="notify-verification-failed" targetRef="end_verification_failed"/>
-    <bpmn:sequenceFlow id="flow_sanctions_gw" sourceRef="sanctions-check" targetRef="gw_sanctions"/>
-    <bpmn:sequenceFlow id="flow_sanctions_yes" name="Hit" sourceRef="gw_sanctions" targetRef="notify-sanctions-block">
+    <bpmn:sequenceFlow id="Flow_FailedNotifyToEnd" sourceRef="Task_NotifyVerificationFailed" targetRef="EndEvent_VerificationFailed"/>
+    <bpmn:sequenceFlow id="Flow_SanctionsToGateway" sourceRef="Task_CheckSanctions" targetRef="Gateway_SanctionsHit"/>
+    <bpmn:sequenceFlow id="Flow_SanctionsYes" name="Yes" sourceRef="Gateway_SanctionsHit" targetRef="Task_NotifySanctionsBlock">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=sanctionsHit = true</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_sanctions_no" name="Clear" sourceRef="gw_sanctions" targetRef="credit-score">
+    <bpmn:sequenceFlow id="Flow_SanctionsNo" name="No" sourceRef="Gateway_SanctionsHit" targetRef="Task_RetrieveCreditScore">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=sanctionsHit = false</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_sanctions_block_end" sourceRef="notify-sanctions-block" targetRef="end_sanctions_block"/>
-    <bpmn:sequenceFlow id="flow_credit_risk" sourceRef="credit-score" targetRef="risk-assessment"/>
-    <bpmn:sequenceFlow id="flow_risk_gw" sourceRef="risk-assessment" targetRef="gw_risk_level"/>
-    <bpmn:sequenceFlow id="flow_risk_high" name="HIGH" sourceRef="gw_risk_level" targetRef="notify-rejected-high">
+    <bpmn:sequenceFlow id="Flow_SanctionsNotifyToEnd" sourceRef="Task_NotifySanctionsBlock" targetRef="EndEvent_ApplicantSanctioned"/>
+    <bpmn:sequenceFlow id="Flow_CreditToRisk" sourceRef="Task_RetrieveCreditScore" targetRef="Task_AssessRisk"/>
+    <bpmn:sequenceFlow id="Flow_RiskToGateway" sourceRef="Task_AssessRisk" targetRef="Gateway_RiskLevel"/>
+    <bpmn:sequenceFlow id="Flow_RiskHigh" name="High" sourceRef="Gateway_RiskLevel" targetRef="Task_NotifyRejectedHighRisk">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=riskLevel = "HIGH"</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_risk_low" name="LOW" sourceRef="gw_risk_level" targetRef="create-account">
+    <bpmn:sequenceFlow id="Flow_RiskLow" name="Low" sourceRef="Gateway_RiskLevel" targetRef="Gateway_JoinCreateAccount">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=riskLevel = "LOW"</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_risk_medium" name="MEDIUM" sourceRef="gw_risk_level" targetRef="compliance-review">
+    <bpmn:sequenceFlow id="Flow_RiskMedium" name="Medium" sourceRef="Gateway_RiskLevel" targetRef="Task_ReviewApplication">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=riskLevel = "MEDIUM"</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_rejected_high_end" sourceRef="notify-rejected-high" targetRef="end_rejected_high"/>
-    <bpmn:sequenceFlow id="flow_account_notify" sourceRef="create-account" targetRef="notify-approved"/>
-    <bpmn:sequenceFlow id="flow_approved_end" sourceRef="notify-approved" targetRef="end_approved"/>
-    <bpmn:sequenceFlow id="flow_review_gw" sourceRef="compliance-review" targetRef="gw_review_decision"/>
-    <bpmn:sequenceFlow id="flow_review_approved" name="Approved" sourceRef="gw_review_decision" targetRef="create-account">
+    <bpmn:sequenceFlow id="Flow_RejectedHighToEnd" sourceRef="Task_NotifyRejectedHighRisk" targetRef="EndEvent_RejectedHighRisk"/>
+    <bpmn:sequenceFlow id="Flow_AccountToNotify" sourceRef="Task_CreateAccount" targetRef="Task_NotifyApproved"/>
+    <bpmn:sequenceFlow id="Flow_ApprovedToEnd" sourceRef="Task_NotifyApproved" targetRef="EndEvent_ApplicationApproved"/>
+    <bpmn:sequenceFlow id="Flow_ReviewToGateway" sourceRef="Task_ReviewApplication" targetRef="Gateway_ReviewDecision"/>
+    <bpmn:sequenceFlow id="Flow_JoinToCreate" sourceRef="Gateway_JoinCreateAccount" targetRef="Task_CreateAccount"/>
+    <bpmn:sequenceFlow id="Flow_ReviewApproved" name="Approved" sourceRef="Gateway_ReviewDecision" targetRef="Gateway_JoinCreateAccount">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=reviewDecision = "approved"</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_review_rejected" name="Rejected" sourceRef="gw_review_decision" targetRef="notify-rejected-review">
+    <bpmn:sequenceFlow id="Flow_ReviewRejected" name="Rejected" sourceRef="Gateway_ReviewDecision" targetRef="Task_NotifyRejectedReview">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=reviewDecision = "rejected"</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_review_request_docs" name="Request Docs" sourceRef="gw_review_decision" targetRef="request-documents">
+    <bpmn:sequenceFlow id="Flow_ReviewRequestDocs" name="Request docs" sourceRef="Gateway_ReviewDecision" targetRef="Task_RequestDocuments">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=reviewDecision = "request_docs"</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="flow_rejected_review_end" sourceRef="notify-rejected-review" targetRef="end_rejected_review"/>
-    <bpmn:sequenceFlow id="flow_request_docs_back" sourceRef="request-documents" targetRef="compliance-review"/>
-    <bpmn:sequenceFlow id="flow_reminder_notify" sourceRef="timer-reminder" targetRef="notify-reminder"/>
-    <bpmn:sequenceFlow id="flow_reminder_end" sourceRef="notify-reminder" targetRef="end_reminder"/>
-    <bpmn:sequenceFlow id="flow_escalation_notify" sourceRef="timer-escalation" targetRef="notify-rejected-timeout"/>
-    <bpmn:sequenceFlow id="flow_timeout_end" sourceRef="notify-rejected-timeout" targetRef="end_timeout"/>
+    <bpmn:sequenceFlow id="Flow_RejectedReviewToEnd" sourceRef="Task_NotifyRejectedReview" targetRef="EndEvent_RejectedByReview"/>
+    <bpmn:sequenceFlow id="Flow_DocsBackToReview" sourceRef="Task_RequestDocuments" targetRef="Task_ReviewApplication"/>
+    <bpmn:sequenceFlow id="Flow_ReminderToNotify" sourceRef="BoundaryEvent_ReviewReminder" targetRef="Task_SendReminder"/>
+    <bpmn:sequenceFlow id="Flow_ReminderToEnd" sourceRef="Task_SendReminder" targetRef="EndEvent_ReminderSent"/>
+    <bpmn:sequenceFlow id="Flow_EscalationToNotify" sourceRef="BoundaryEvent_ReviewTimeout" targetRef="Task_NotifyAutoRejected"/>
+    <bpmn:sequenceFlow id="Flow_TimeoutToEnd" sourceRef="Task_NotifyAutoRejected" targetRef="EndEvent_ApplicationAutoRejected"/>
 
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="kyc-onboarding">
 
-      <!-- Row 1: Main flow (y=207) -->
-      <bpmndi:BPMNShape id="start_di" bpmnElement="start">
-        <dc:Bounds x="179" y="209" width="36" height="36"/>
+      <!-- Main flow (y=260 center-line) -->
+      <bpmndi:BPMNShape id="StartEvent_ApplicationReceived_di" bpmnElement="StartEvent_ApplicationReceived">
+        <dc:Bounds x="160" y="242" width="36" height="36"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="prepare-application_di" bpmnElement="prepare-application">
-        <dc:Bounds x="270" y="187" width="100" height="80"/>
+      <bpmndi:BPMNShape id="Task_PrepareApplication_di" bpmnElement="Task_PrepareApplication">
+        <dc:Bounds x="250" y="220" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="identity-verification_di" bpmnElement="identity-verification">
-        <dc:Bounds x="430" y="187" width="100" height="80"/>
+      <bpmndi:BPMNShape id="Task_VerifyIdentity_di" bpmnElement="Task_VerifyIdentity">
+        <dc:Bounds x="410" y="220" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="identity-error-boundary_di" bpmnElement="identity-error-boundary">
-        <dc:Bounds x="462" y="249" width="36" height="36"/>
+      <bpmndi:BPMNShape id="BoundaryEvent_ServiceError_di" bpmnElement="BoundaryEvent_ServiceError">
+        <dc:Bounds x="442" y="282" width="36" height="36"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="gw_id_verified_di" bpmnElement="gw_id_verified" isMarkerVisible="true">
-        <dc:Bounds x="585" y="202" width="50" height="50"/>
+      <bpmndi:BPMNShape id="Gateway_IdentityVerified_di" bpmnElement="Gateway_IdentityVerified" isMarkerVisible="true">
+        <dc:Bounds x="575" y="235" width="50" height="50"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="sanctions-check_di" bpmnElement="sanctions-check">
-        <dc:Bounds x="700" y="187" width="100" height="80"/>
+      <bpmndi:BPMNShape id="Task_CheckSanctions_di" bpmnElement="Task_CheckSanctions">
+        <dc:Bounds x="700" y="220" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="gw_sanctions_di" bpmnElement="gw_sanctions" isMarkerVisible="true">
-        <dc:Bounds x="855" y="202" width="50" height="50"/>
+      <bpmndi:BPMNShape id="Gateway_SanctionsHit_di" bpmnElement="Gateway_SanctionsHit" isMarkerVisible="true">
+        <dc:Bounds x="865" y="235" width="50" height="50"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="credit-score_di" bpmnElement="credit-score">
-        <dc:Bounds x="970" y="187" width="100" height="80"/>
+      <bpmndi:BPMNShape id="Task_RetrieveCreditScore_di" bpmnElement="Task_RetrieveCreditScore">
+        <dc:Bounds x="980" y="220" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="risk-assessment_di" bpmnElement="risk-assessment">
-        <dc:Bounds x="1130" y="187" width="100" height="80"/>
+      <bpmndi:BPMNShape id="Task_AssessRisk_di" bpmnElement="Task_AssessRisk">
+        <dc:Bounds x="1140" y="220" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="gw_risk_level_di" bpmnElement="gw_risk_level" isMarkerVisible="true">
-        <dc:Bounds x="1285" y="202" width="50" height="50"/>
-      </bpmndi:BPMNShape>
-
-      <!-- LOW risk path (y=207) -->
-      <bpmndi:BPMNShape id="create-account_di" bpmnElement="create-account">
-        <dc:Bounds x="1500" y="187" width="100" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="notify-approved_di" bpmnElement="notify-approved">
-        <dc:Bounds x="1660" y="187" width="100" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="end_approved_di" bpmnElement="end_approved">
-        <dc:Bounds x="1822" y="209" width="36" height="36"/>
+      <bpmndi:BPMNShape id="Gateway_RiskLevel_di" bpmnElement="Gateway_RiskLevel" isMarkerVisible="true">
+        <dc:Bounds x="1305" y="235" width="50" height="50"/>
       </bpmndi:BPMNShape>
 
-      <!-- HIGH risk path (y=80) -->
-      <bpmndi:BPMNShape id="notify-rejected-high_di" bpmnElement="notify-rejected-high">
-        <dc:Bounds x="1400" y="60" width="100" height="80"/>
+      <!-- HIGH risk path (y=100) -->
+      <bpmndi:BPMNShape id="Task_NotifyRejectedHighRisk_di" bpmnElement="Task_NotifyRejectedHighRisk">
+        <dc:Bounds x="1420" y="60" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="end_rejected_high_di" bpmnElement="end_rejected_high">
-        <dc:Bounds x="1562" y="82" width="36" height="36"/>
-      </bpmndi:BPMNShape>
-
-      <!-- Verification failed path (y=350) -->
-      <bpmndi:BPMNShape id="notify-verification-failed_di" bpmnElement="notify-verification-failed">
-        <dc:Bounds x="560" y="330" width="100" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="end_verification_failed_di" bpmnElement="end_verification_failed">
-        <dc:Bounds x="722" y="352" width="36" height="36"/>
+      <bpmndi:BPMNShape id="EndEvent_RejectedHighRisk_di" bpmnElement="EndEvent_RejectedHighRisk">
+        <dc:Bounds x="1582" y="82" width="36" height="36"/>
       </bpmndi:BPMNShape>
 
-      <!-- Sanctions block path (y=350) -->
-      <bpmndi:BPMNShape id="notify-sanctions-block_di" bpmnElement="notify-sanctions-block">
-        <dc:Bounds x="830" y="330" width="100" height="80"/>
+      <!-- Joining gateway + happy path (y=260) -->
+      <bpmndi:BPMNShape id="Gateway_JoinCreateAccount_di" bpmnElement="Gateway_JoinCreateAccount" isMarkerVisible="true">
+        <dc:Bounds x="1950" y="235" width="50" height="50"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="end_sanctions_block_di" bpmnElement="end_sanctions_block">
-        <dc:Bounds x="992" y="352" width="36" height="36"/>
+      <bpmndi:BPMNShape id="Task_CreateAccount_di" bpmnElement="Task_CreateAccount">
+        <dc:Bounds x="2060" y="220" width="100" height="80"/>
       </bpmndi:BPMNShape>
-
-      <!-- MEDIUM risk path: Compliance Review (y=400) -->
-      <bpmndi:BPMNShape id="compliance-review_di" bpmnElement="compliance-review">
-        <dc:Bounds x="1400" y="380" width="100" height="80"/>
+      <bpmndi:BPMNShape id="Task_NotifyApproved_di" bpmnElement="Task_NotifyApproved">
+        <dc:Bounds x="2220" y="220" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="gw_review_decision_di" bpmnElement="gw_review_decision" isMarkerVisible="true">
-        <dc:Bounds x="1565" y="395" width="50" height="50"/>
+      <bpmndi:BPMNShape id="EndEvent_ApplicationApproved_di" bpmnElement="EndEvent_ApplicationApproved">
+        <dc:Bounds x="2382" y="242" width="36" height="36"/>
       </bpmndi:BPMNShape>
 
-      <!-- Review → Rejected (y=530) -->
-      <bpmndi:BPMNShape id="notify-rejected-review_di" bpmnElement="notify-rejected-review">
-        <dc:Bounds x="1660" y="510" width="100" height="80"/>
+      <!-- Verification failed path (y=410) -->
+      <bpmndi:BPMNShape id="Task_NotifyVerificationFailed_di" bpmnElement="Task_NotifyVerificationFailed">
+        <dc:Bounds x="550" y="390" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="end_rejected_review_di" bpmnElement="end_rejected_review">
-        <dc:Bounds x="1822" y="532" width="36" height="36"/>
-      </bpmndi:BPMNShape>
-
-      <!-- Review → Request Documents (y=400) -->
-      <bpmndi:BPMNShape id="request-documents_di" bpmnElement="request-documents">
-        <dc:Bounds x="1660" y="380" width="100" height="80"/>
+      <bpmndi:BPMNShape id="EndEvent_VerificationFailed_di" bpmnElement="EndEvent_VerificationFailed">
+        <dc:Bounds x="712" y="412" width="36" height="36"/>
       </bpmndi:BPMNShape>
 
-      <!-- Timer boundary events on compliance review -->
-      <bpmndi:BPMNShape id="timer-reminder_di" bpmnElement="timer-reminder">
-        <dc:Bounds x="1412" y="442" width="36" height="36"/>
+      <!-- Sanctions block path (y=410) -->
+      <bpmndi:BPMNShape id="Task_NotifySanctionsBlock_di" bpmnElement="Task_NotifySanctionsBlock">
+        <dc:Bounds x="840" y="390" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="timer-escalation_di" bpmnElement="timer-escalation">
-        <dc:Bounds x="1462" y="442" width="36" height="36"/>
-      </bpmndi:BPMNShape>
-
-      <!-- Reminder path -->
-      <bpmndi:BPMNShape id="notify-reminder_di" bpmnElement="notify-reminder">
-        <dc:Bounds x="1330" y="520" width="100" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="end_reminder_di" bpmnElement="end_reminder">
-        <dc:Bounds x="1362" y="630" width="36" height="36"/>
+      <bpmndi:BPMNShape id="EndEvent_ApplicantSanctioned_di" bpmnElement="EndEvent_ApplicantSanctioned">
+        <dc:Bounds x="1002" y="412" width="36" height="36"/>
       </bpmndi:BPMNShape>
 
-      <!-- Escalation/timeout path -->
-      <bpmndi:BPMNShape id="notify-rejected-timeout_di" bpmnElement="notify-rejected-timeout">
-        <dc:Bounds x="1500" y="520" width="100" height="80"/>
+      <!-- MEDIUM risk: Compliance review (y=500) -->
+      <bpmndi:BPMNShape id="Task_ReviewApplication_di" bpmnElement="Task_ReviewApplication">
+        <dc:Bounds x="1420" y="460" width="100" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="end_timeout_di" bpmnElement="end_timeout">
-        <dc:Bounds x="1532" y="630" width="36" height="36"/>
+      <bpmndi:BPMNShape id="Gateway_ReviewDecision_di" bpmnElement="Gateway_ReviewDecision" isMarkerVisible="true">
+        <dc:Bounds x="1605" y="475" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer boundary: Reminder (left side of task bottom) -->
+      <bpmndi:BPMNShape id="BoundaryEvent_ReviewReminder_di" bpmnElement="BoundaryEvent_ReviewReminder">
+        <dc:Bounds x="1422" y="522" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <!-- Timer boundary: Escalation (right side of task bottom) -->
+      <bpmndi:BPMNShape id="BoundaryEvent_ReviewTimeout_di" bpmnElement="BoundaryEvent_ReviewTimeout">
+        <dc:Bounds x="1482" y="522" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Review: Request documents (y=500, right of gateway, loops back) -->
+      <bpmndi:BPMNShape id="Task_RequestDocuments_di" bpmnElement="Task_RequestDocuments">
+        <dc:Bounds x="1720" y="460" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Review: Rejected (y=660) -->
+      <bpmndi:BPMNShape id="Task_NotifyRejectedReview_di" bpmnElement="Task_NotifyRejectedReview">
+        <dc:Bounds x="1720" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_RejectedByReview_di" bpmnElement="EndEvent_RejectedByReview">
+        <dc:Bounds x="1882" y="642" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer: Reminder path (y=660) -->
+      <bpmndi:BPMNShape id="Task_SendReminder_di" bpmnElement="Task_SendReminder">
+        <dc:Bounds x="1310" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_ReminderSent_di" bpmnElement="EndEvent_ReminderSent">
+        <dc:Bounds x="1342" y="740" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer: Escalation path (y=660) -->
+      <bpmndi:BPMNShape id="Task_NotifyAutoRejected_di" bpmnElement="Task_NotifyAutoRejected">
+        <dc:Bounds x="1510" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_ApplicationAutoRejected_di" bpmnElement="EndEvent_ApplicationAutoRejected">
+        <dc:Bounds x="1542" y="740" width="36" height="36"/>
       </bpmndi:BPMNShape>
 
       <!-- Edges -->
-      <bpmndi:BPMNEdge id="flow_start_prepare_di" bpmnElement="flow_start_prepare">
-        <di:waypoint x="215" y="227"/>
-        <di:waypoint x="270" y="227"/>
+
+      <!-- Main flow: Start > Prepare > Verify identity > Gateway -->
+      <bpmndi:BPMNEdge id="Flow_StartToPrepare_di" bpmnElement="Flow_StartToPrepare">
+        <di:waypoint x="196" y="260"/>
+        <di:waypoint x="250" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_prepare_identity_di" bpmnElement="flow_prepare_identity">
-        <di:waypoint x="370" y="227"/>
-        <di:waypoint x="430" y="227"/>
+      <bpmndi:BPMNEdge id="Flow_PrepareToVerify_di" bpmnElement="Flow_PrepareToVerify">
+        <di:waypoint x="350" y="260"/>
+        <di:waypoint x="410" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_identity_gw_di" bpmnElement="flow_identity_gw">
-        <di:waypoint x="530" y="227"/>
-        <di:waypoint x="585" y="227"/>
+      <bpmndi:BPMNEdge id="Flow_VerifyToGateway_di" bpmnElement="Flow_VerifyToGateway">
+        <di:waypoint x="510" y="260"/>
+        <di:waypoint x="575" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_error_to_notify_failed_di" bpmnElement="flow_error_to_notify_failed">
-        <di:waypoint x="480" y="285"/>
-        <di:waypoint x="480" y="370"/>
-        <di:waypoint x="560" y="370"/>
+
+      <!-- Error boundary > Send failure notification -->
+      <bpmndi:BPMNEdge id="Flow_ErrorToNotify_di" bpmnElement="Flow_ErrorToNotify">
+        <di:waypoint x="460" y="318"/>
+        <di:waypoint x="460" y="430"/>
+        <di:waypoint x="550" y="430"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_id_no_di" bpmnElement="flow_id_no">
-        <di:waypoint x="610" y="252"/>
-        <di:waypoint x="610" y="330"/>
+
+      <!-- Gateway: No > Send failure notification -->
+      <bpmndi:BPMNEdge id="Flow_IdentityNo_di" bpmnElement="Flow_IdentityNo">
+        <di:waypoint x="600" y="285"/>
+        <di:waypoint x="600" y="390"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_id_yes_di" bpmnElement="flow_id_yes">
-        <di:waypoint x="635" y="227"/>
-        <di:waypoint x="700" y="227"/>
+      <!-- Gateway: Yes > Check sanctions -->
+      <bpmndi:BPMNEdge id="Flow_IdentityYes_di" bpmnElement="Flow_IdentityYes">
+        <di:waypoint x="625" y="260"/>
+        <di:waypoint x="700" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_verify_failed_end_di" bpmnElement="flow_verify_failed_end">
-        <di:waypoint x="660" y="370"/>
-        <di:waypoint x="722" y="370"/>
+      <!-- Send failure notification > End -->
+      <bpmndi:BPMNEdge id="Flow_FailedNotifyToEnd_di" bpmnElement="Flow_FailedNotifyToEnd">
+        <di:waypoint x="650" y="430"/>
+        <di:waypoint x="712" y="430"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_sanctions_gw_di" bpmnElement="flow_sanctions_gw">
-        <di:waypoint x="800" y="227"/>
-        <di:waypoint x="855" y="227"/>
+
+      <!-- Check sanctions > Gateway -->
+      <bpmndi:BPMNEdge id="Flow_SanctionsToGateway_di" bpmnElement="Flow_SanctionsToGateway">
+        <di:waypoint x="800" y="260"/>
+        <di:waypoint x="865" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_sanctions_yes_di" bpmnElement="flow_sanctions_yes">
-        <di:waypoint x="880" y="252"/>
-        <di:waypoint x="880" y="330"/>
+      <!-- Gateway: Yes > Send sanctions notification -->
+      <bpmndi:BPMNEdge id="Flow_SanctionsYes_di" bpmnElement="Flow_SanctionsYes">
+        <di:waypoint x="890" y="285"/>
+        <di:waypoint x="890" y="390"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_sanctions_no_di" bpmnElement="flow_sanctions_no">
-        <di:waypoint x="905" y="227"/>
-        <di:waypoint x="970" y="227"/>
+      <!-- Gateway: No > Retrieve credit score -->
+      <bpmndi:BPMNEdge id="Flow_SanctionsNo_di" bpmnElement="Flow_SanctionsNo">
+        <di:waypoint x="915" y="260"/>
+        <di:waypoint x="980" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_sanctions_block_end_di" bpmnElement="flow_sanctions_block_end">
-        <di:waypoint x="930" y="370"/>
-        <di:waypoint x="992" y="370"/>
+      <!-- Send sanctions notification > End -->
+      <bpmndi:BPMNEdge id="Flow_SanctionsNotifyToEnd_di" bpmnElement="Flow_SanctionsNotifyToEnd">
+        <di:waypoint x="940" y="430"/>
+        <di:waypoint x="1002" y="430"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_credit_risk_di" bpmnElement="flow_credit_risk">
-        <di:waypoint x="1070" y="227"/>
-        <di:waypoint x="1130" y="227"/>
+
+      <!-- Retrieve credit score > Assess risk > Gateway -->
+      <bpmndi:BPMNEdge id="Flow_CreditToRisk_di" bpmnElement="Flow_CreditToRisk">
+        <di:waypoint x="1080" y="260"/>
+        <di:waypoint x="1140" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_risk_gw_di" bpmnElement="flow_risk_gw">
-        <di:waypoint x="1230" y="227"/>
-        <di:waypoint x="1285" y="227"/>
+      <bpmndi:BPMNEdge id="Flow_RiskToGateway_di" bpmnElement="Flow_RiskToGateway">
+        <di:waypoint x="1240" y="260"/>
+        <di:waypoint x="1305" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_risk_high_di" bpmnElement="flow_risk_high">
-        <di:waypoint x="1310" y="202"/>
-        <di:waypoint x="1310" y="100"/>
-        <di:waypoint x="1400" y="100"/>
+
+      <!-- Risk gateway: High > up to Send rejection notification -->
+      <bpmndi:BPMNEdge id="Flow_RiskHigh_di" bpmnElement="Flow_RiskHigh">
+        <di:waypoint x="1330" y="235"/>
+        <di:waypoint x="1330" y="100"/>
+        <di:waypoint x="1420" y="100"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_risk_low_di" bpmnElement="flow_risk_low">
-        <di:waypoint x="1335" y="227"/>
-        <di:waypoint x="1500" y="227"/>
+      <!-- Risk gateway: Low > Join gateway (straight right) -->
+      <bpmndi:BPMNEdge id="Flow_RiskLow_di" bpmnElement="Flow_RiskLow">
+        <di:waypoint x="1355" y="260"/>
+        <di:waypoint x="1950" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_risk_medium_di" bpmnElement="flow_risk_medium">
-        <di:waypoint x="1310" y="252"/>
-        <di:waypoint x="1310" y="420"/>
-        <di:waypoint x="1400" y="420"/>
+      <!-- Risk gateway: Medium > down to Review application -->
+      <bpmndi:BPMNEdge id="Flow_RiskMedium_di" bpmnElement="Flow_RiskMedium">
+        <di:waypoint x="1330" y="285"/>
+        <di:waypoint x="1330" y="500"/>
+        <di:waypoint x="1420" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_rejected_high_end_di" bpmnElement="flow_rejected_high_end">
-        <di:waypoint x="1500" y="100"/>
-        <di:waypoint x="1562" y="100"/>
+
+      <!-- HIGH path: Send rejection notification > End -->
+      <bpmndi:BPMNEdge id="Flow_RejectedHighToEnd_di" bpmnElement="Flow_RejectedHighToEnd">
+        <di:waypoint x="1520" y="100"/>
+        <di:waypoint x="1582" y="100"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_account_notify_di" bpmnElement="flow_account_notify">
-        <di:waypoint x="1600" y="227"/>
-        <di:waypoint x="1660" y="227"/>
+
+      <!-- Join gateway > Create account > Send approval notification > End -->
+      <bpmndi:BPMNEdge id="Flow_JoinToCreate_di" bpmnElement="Flow_JoinToCreate">
+        <di:waypoint x="2000" y="260"/>
+        <di:waypoint x="2060" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_approved_end_di" bpmnElement="flow_approved_end">
-        <di:waypoint x="1760" y="227"/>
-        <di:waypoint x="1822" y="227"/>
+      <bpmndi:BPMNEdge id="Flow_AccountToNotify_di" bpmnElement="Flow_AccountToNotify">
+        <di:waypoint x="2160" y="260"/>
+        <di:waypoint x="2220" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_review_gw_di" bpmnElement="flow_review_gw">
-        <di:waypoint x="1500" y="420"/>
-        <di:waypoint x="1565" y="420"/>
+      <bpmndi:BPMNEdge id="Flow_ApprovedToEnd_di" bpmnElement="Flow_ApprovedToEnd">
+        <di:waypoint x="2320" y="260"/>
+        <di:waypoint x="2382" y="260"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_review_approved_di" bpmnElement="flow_review_approved">
-        <di:waypoint x="1590" y="395"/>
-        <di:waypoint x="1590" y="227"/>
-        <di:waypoint x="1500" y="227"/>
+
+      <!-- Review application > Review decision gateway -->
+      <bpmndi:BPMNEdge id="Flow_ReviewToGateway_di" bpmnElement="Flow_ReviewToGateway">
+        <di:waypoint x="1520" y="500"/>
+        <di:waypoint x="1605" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_review_rejected_di" bpmnElement="flow_review_rejected">
-        <di:waypoint x="1590" y="445"/>
-        <di:waypoint x="1590" y="550"/>
-        <di:waypoint x="1660" y="550"/>
+
+      <!-- Review gateway: Approved > down below Request Documents, right, then up to join gateway -->
+      <bpmndi:BPMNEdge id="Flow_ReviewApproved_di" bpmnElement="Flow_ReviewApproved">
+        <di:waypoint x="1655" y="500"/>
+        <di:waypoint x="1680" y="500"/>
+        <di:waypoint x="1680" y="570"/>
+        <di:waypoint x="1975" y="570"/>
+        <di:waypoint x="1975" y="285"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_review_request_docs_di" bpmnElement="flow_review_request_docs">
-        <di:waypoint x="1615" y="420"/>
-        <di:waypoint x="1660" y="420"/>
+
+      <!-- Review gateway: Request docs > Request documents -->
+      <bpmndi:BPMNEdge id="Flow_ReviewRequestDocs_di" bpmnElement="Flow_ReviewRequestDocs">
+        <di:waypoint x="1655" y="500"/>
+        <di:waypoint x="1720" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_rejected_review_end_di" bpmnElement="flow_rejected_review_end">
-        <di:waypoint x="1760" y="550"/>
-        <di:waypoint x="1822" y="550"/>
+
+      <!-- Review gateway: Rejected > down to Send rejection notification -->
+      <bpmndi:BPMNEdge id="Flow_ReviewRejected_di" bpmnElement="Flow_ReviewRejected">
+        <di:waypoint x="1630" y="525"/>
+        <di:waypoint x="1630" y="660"/>
+        <di:waypoint x="1720" y="660"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_request_docs_back_di" bpmnElement="flow_request_docs_back">
-        <di:waypoint x="1710" y="460"/>
-        <di:waypoint x="1710" y="490"/>
-        <di:waypoint x="1380" y="490"/>
-        <di:waypoint x="1380" y="420"/>
-        <di:waypoint x="1400" y="420"/>
+
+      <!-- Send rejection notification (review) > End -->
+      <bpmndi:BPMNEdge id="Flow_RejectedReviewToEnd_di" bpmnElement="Flow_RejectedReviewToEnd">
+        <di:waypoint x="1820" y="660"/>
+        <di:waypoint x="1882" y="660"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_reminder_notify_di" bpmnElement="flow_reminder_notify">
-        <di:waypoint x="1430" y="478"/>
-        <di:waypoint x="1430" y="560"/>
-        <di:waypoint x="1430" y="560"/>
+
+      <!-- Request documents > loop back to Review application -->
+      <bpmndi:BPMNEdge id="Flow_DocsBackToReview_di" bpmnElement="Flow_DocsBackToReview">
+        <di:waypoint x="1770" y="460"/>
+        <di:waypoint x="1770" y="430"/>
+        <di:waypoint x="1470" y="430"/>
+        <di:waypoint x="1470" y="460"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_reminder_end_di" bpmnElement="flow_reminder_end">
-        <di:waypoint x="1380" y="600"/>
-        <di:waypoint x="1380" y="630"/>
+
+      <!-- Timer reminder > Send reminder (goes down-left) -->
+      <bpmndi:BPMNEdge id="Flow_ReminderToNotify_di" bpmnElement="Flow_ReminderToNotify">
+        <di:waypoint x="1440" y="558"/>
+        <di:waypoint x="1440" y="590"/>
+        <di:waypoint x="1360" y="590"/>
+        <di:waypoint x="1360" y="620"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_escalation_notify_di" bpmnElement="flow_escalation_notify">
-        <di:waypoint x="1480" y="478"/>
-        <di:waypoint x="1480" y="500"/>
-        <di:waypoint x="1550" y="500"/>
-        <di:waypoint x="1550" y="520"/>
+      <!-- Send reminder > End -->
+      <bpmndi:BPMNEdge id="Flow_ReminderToEnd_di" bpmnElement="Flow_ReminderToEnd">
+        <di:waypoint x="1360" y="700"/>
+        <di:waypoint x="1360" y="740"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="flow_timeout_end_di" bpmnElement="flow_timeout_end">
-        <di:waypoint x="1550" y="600"/>
-        <di:waypoint x="1550" y="630"/>
+
+      <!-- Timer escalation > Send auto-rejection notification (goes down) -->
+      <bpmndi:BPMNEdge id="Flow_EscalationToNotify_di" bpmnElement="Flow_EscalationToNotify">
+        <di:waypoint x="1500" y="558"/>
+        <di:waypoint x="1500" y="590"/>
+        <di:waypoint x="1560" y="590"/>
+        <di:waypoint x="1560" y="620"/>
+      </bpmndi:BPMNEdge>
+      <!-- Send auto-rejection notification > End -->
+      <bpmndi:BPMNEdge id="Flow_TimeoutToEnd_di" bpmnElement="Flow_TimeoutToEnd">
+        <di:waypoint x="1560" y="700"/>
+        <di:waypoint x="1560" y="740"/>
       </bpmndi:BPMNEdge>
 
     </bpmndi:BPMNPlane>

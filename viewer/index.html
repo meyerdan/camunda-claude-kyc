@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BPMN Viewer</title>
+  <script src="https://unpkg.com/bpmn-js@18.6.3/dist/bpmn-navigated-viewer.production.min.js"></script>
+  <style>
+    html, body, #canvas { width: 100%; height: 100%; margin: 0; padding: 0; background: #fff; }
+  </style>
+</head>
+<body>
+  <div id="canvas"></div>
+  <script>
+    const viewer = new BpmnJS({ container: '#canvas' });
+    fetch('/bpmn/kyc-onboarding.bpmn')
+      .then(r => r.text())
+      .then(xml => viewer.importXML(xml))
+      .then(() => viewer.get('canvas').zoom('fit-viewport'))
+      .catch(err => document.body.innerText = 'Error: ' + err.message);
+  </script>
+</body>
+</html>
